@@ -1,0 +1,65 @@
+groups:
+  - name: node-alerts
+    interval: 1m
+    rules:
+
+      - alert: NodeDown
+        expr: up{job="node-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node {{ $labels.instance }} is unreachable"
+          description: "node-exporter on {{ $labels.instance }} has been down for more than 1 minute."
+
+      - alert: HighCpuUsage
+        expr: >
+          100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value | printf \"%.1f\" }}% (threshold: 85%) for 5+ minutes."
+
+      - alert: HighMemoryUsage
+        expr: >
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value | printf \"%.1f\" }}% (threshold: 85%)."
+
+      - alert: DiskSpaceLow
+        expr: >
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs|overlay"}
+          / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs|overlay"})) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: "{{ $labels.mountpoint }} is {{ $value | printf \"%.1f\" }}% full (threshold: 80%)."
+
+      - alert: DiskSpaceCritical
+        expr: >
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs|overlay"}
+          / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs|overlay"})) * 100 > 95
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical disk on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: "{{ $labels.mountpoint }} is {{ $value | printf \"%.1f\" }}% full."
+
+      - alert: HighLoadAverage
+        expr: >
+          node_load1 > (count by(instance) (node_cpu_seconds_total{mode="idle"}) * 1.5)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High load average on {{ $labels.instance }}"
+          description: "Load1 is {{ $value | printf \"%.2f\" }}, exceeding 1.5× CPU count for 10 minutes."
